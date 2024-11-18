@@ -19,7 +19,7 @@
 > 그러나 `시간이 모든 것을 해결해준다`는 말이 있듯, 시간이 지나고 적응을 하면서 결국 나도 1인분의 역할을 하는 사람이 되었다.
 > 하지만 새로운 문제를 마주하기 시작하는데...
 
-<img src="https://cphoto.asiae.co.kr/listimglink/1/2015020410265342120_1.jpg">
+<img src="/images/jang1.jpg">
 
 
 > ## 제 2국. 남의 판 위에 있음을 깨닫다
@@ -53,7 +53,7 @@
 > 5주간의 프리코스와 최종 코테를 마친 후, 노력에 대한 선물을 받듯 합격 이메일을 받게 되었다.
 > 나는 잠깐이나마 정들었던 회사와 동료 선후배분들께 인사를 드리고, 새로운 출발, 나의 바둑판에서 새로운 대국을 서막을 열었다.
 
-<img src="https://admin.tvbaduk.com/FileUpDown/news/%EC%B2%9C%EB%85%84%EC%88%98%EB%8B%B4_%EB%B0%94%EB%91%91%EB%8F%8C%20%EB%B3%B4%EC%9D%B4%EB%8A%94%20%EC%B0%A9%EC%88%98%20-%20%EB%B3%B5%EC%82%AC%EB%B3%B8.jpg">
+<img src="https://cdn.bsportstoday.com/news/photo/202204/773_813_3729.jpg">
 
 
 > ## 제 4국. 다시 또 미생
