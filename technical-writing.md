@@ -4,17 +4,15 @@
 
 ## **1.1. Multi Step Form을 개발한 배경**
 
-![mouda.site](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/a84ca458-bc7c-4284-9927-d2d7faf6a708/image.png)
-
-mouda.site
+<img src="/technical-writing/image1.png" width="200">
 
 ‘모우다: 모여봐요 우리의 다락방’은 사람들이 속한 그룹(다락방) 내에서 모임을 쉽게 만들고 참여할 수 있도록 돕기위해 제작된 서비스입니다. 모우다 서비스는 사용자가 자신이 속한 신뢰할 수 있는 집단에서 편하게 모임을 주선할 수 있는 공간을 제공하여, 새로운 인연을 맺을 수 있도록 돕는 것을 목표로 하고 있어요.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/5533e666-9a5f-4741-bc99-9c59ee28a2b5/image.png)
+<img src="/technical-writing/image2.png" width="500">
 
 이 목표 아래에서 저희 팀이 마주한 주요 문제는 복잡한 모임 여정이었어요. 다락방을 만들고, 사람을 초대하고, 다락방에서 모임을 만들고, 참여하고, 소통하는, 모임의 시작부터 마지막에 이르기까지의 절차가 길고 복잡했습니다.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/5da95a57-ee64-4848-b8d3-2b09c6e54297/image.png)
+<img src="/technical-writing/image3.png" width="200">
 
 그 중에서 모임 생성 단계의 사용자 경험을 개선하기 위해 노력했던 이야기를 다루려고 해요. 프로젝트 초기, MVP로 시행한 UT에서 모임을 생성하는 사용자의 경험이 매우 좋지 않다는 것을 확인했어요. 모임을 만들기 위해 사용자는 날짜, 시간, 장소, 인원수, 모임 내용 등 많은 정보를 입력해야 했거든요. 이로인해 사용자가 폼을 작성하는 것에 스트레스를 받는다는 것을 알게됐고, 이를 개선하기 시작했어요.
 
@@ -34,7 +32,7 @@ Multi Step Form이라는 용어가 생소할 수 있는데, 사실 굉장히 직
 
 ### **1.2.1. Single Step Form**
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/dfbffccd-7257-4d3f-9a60-b58e4f881106/image.png)
+<img src="/technical-writing/image4.png" width="500">
 
 **장점:**
 
@@ -49,7 +47,7 @@ Multi Step Form이라는 용어가 생소할 수 있는데, 사실 굉장히 직
 
 ### **1.2.2. Multi Step Form**
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/72f14642-1df7-49f9-b9ca-2d7773ab2857/image.png)
+<img src="/technical-writing/image5.png" width="800">
 
 **장점:**
 
@@ -363,19 +361,19 @@ export default function MoimCreationPage() {
 
 폼 절차를 재시작하길 원하는 사용자에게는 ‘전부 리셋 & 처음 단계로 이동’ 시나리오가 베스트겠죠. 반면 ‘기존 상태 유지’, ‘지금 단계 리셋’의 시나리오로 진행된다면 당황하거나 의아할 수 있어요.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/ae6a95b7-1dbd-4345-a8e2-aa663009bdd4/image.png)
+<img src="/technical-writing/image6.png" width="700">
 
 두 번째로 해당 단계만 리셋되길 원하는 사용자 입장에서는 ‘지금 단계만 리셋’되는 시나리오가 가장 이상적일 겁니다. ‘기존 상태 유지’ 시나리오에서는 의도와 다르니 의아할 것이고요. 문제는 ‘전부 리셋 & 처음 단계로 이동’ 시나리오입니다. 이때는 정말 경험이 안좋을 거에요.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/e0b39d17-0e37-4864-9d8f-f2c8ec090934/image.png)
+<img src="/technical-writing/image7.png" width="700">
 
 마지막은 실수로 새로고침을 트리거한 사용자에요. 시나리오별로 가장 드라마틱한 사용자 경험을 만들어낼 수 있는 케이스였어요. ‘기존 상태 유지’ 시나리오에서는 최소한 안심, 최대는 감동까지 받을 수 있다고 봅니다. 반면 ‘지금 단계만 리셋’, ‘전부 리셋 & 처음 단계로 이동’ 시나리오에서는 정말 큰 불만을 느낄 수 있어요. 경우에 따라서는 욕까지 나올 정도로 화가날 수도 있겠죠.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/853388d7-817c-445e-b855-a373544ba660/image.png)
+<img src="/technical-writing/image8.png" width="700">
 
 그래서 결론은, 새로고침이 됐을 때 기존 상태를 유지하기로 했어요. 모든 사용자 의도 케이스에서 사용자 경험의 하방과 상방이 모두 높다고 판단했기 때문이에요.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/3b2aa98f-04e9-4e96-86d9-be976cceba7d/image.png)
+<img src="/technical-writing/image9.png" width="700">
 
 그럼 이제 문제는 이걸 어떻게 구현하나는 거겠죠. 이 부분을 이제 다뤄보도록 할게요.
 
@@ -473,7 +471,7 @@ export default function MoimCreationPage() {
 
 새로고침 시 상태를 유지하는 방법을 정리해볼게요. 새로고침이 트리거될 때 세션 스토리지에 정보를 저장하고, 페이지가 다시 로딩될 때 기존 데이터로 상태를 초기화하고 스토리지를 비웁니다.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/73b25c1d-1270-4c8a-a76a-6b448a57122c/image.png)
+<img src="/technical-writing/image10.png" width="700">
 
 ## 4.2. useStatePersist 커스텀 훅 개발
 
@@ -573,17 +571,17 @@ export default function useStatePersist<StateType>({
 
 아이디어는 이랬어요. ‘모든 단계가 동일한 페이지니까, 현재 단계와 navigation type만 알면 페이지 접근을 감지할 수 있겠다.’ 현재 단계가 첫 번째 단계이면서 히스토리 스택이 PUSH라면 페이지에 새로 접근한 경우로 판정할 수 있고, 이때 스토리지 데이터를 삭제하면 되는 거였어요.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/91a9f3bd-9eab-47f8-bf89-188907e2c764/image.png)
+<img src="/technical-writing/image11.png" width="700">
 
 그럼 여기서 navigation type을 알 수 있는 방법을 찾아야 했어요.
 
 첫 번째로 고려한 방법은 NavigateEvent의 `navigationType`이었어요. 그러나 아직 실험 단계에 있는 기술이고, 브라우저 호환성 이슈가 있어 이 방법은 사용하지 않기로 했습니다.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/dc32da63-75c8-4711-9cb2-e5dbb4a4ffbc/image.png)
+<img src="/technical-writing/image12.png" width="700">
 
 그래서 다음으로 고려한 방법은 React Router의 `useNavigationType` 훅이었어요. 이 훅으로 히스토리 스택이 새로 쌓이는 경우를 감지하고 전에 삭제하지 못했던 데이터를 삭제할 수 있게 됐어요.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/f2ac4fad-6e69-4a4d-a71d-ff49146eeae6/image.png)
+<img src="/technical-writing/image13.png" width="700">
 
 ```tsx
 const navigationType = useNavigationType();
@@ -602,7 +600,7 @@ if (isNewMoimCreation) {
 
 다행히도 Performance API에 navigation type을 알 수 있는 프로퍼티가 있었어요. 이 프로퍼티를 사용해 페이지 접근의 타입을 판단할 수 있게 됐어요. URL 입력으로 페이지를 접근한 경우, navigationType의 값이 `"navigate"`가 됩니다.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/be1e9cd7-8241-4c25-a0ec-d86237bd4663/image.png)
+<img src="/technical-writing/image14.png" width="700">
 
 ```tsx
 const getBrowserNavigationType = ():
@@ -625,7 +623,7 @@ export const isApprochedByUrl = () => {
 
 정리하면, `useNavigationType` 훅과 Performance API의 `PerformanceNavigationTiming.type`를 활용해 페이지 접근을 감지할 수 있었어요. 궁극적으로는 URL로 페이지를 이탈하는 경우 발생하는 ‘페이지 재접근 시 초기화’되는 문제를 해결한 것이었습니다.
 
-![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c0639323-b649-420b-9f92-d0e42eb81b8c/fc3605e8-ce08-495a-82d1-e61fd1a302ed/image.png)
+<img src="/technical-writing/image15.png" width="700">
 
 ```tsx
 const isNewMoimCreation =
@@ -638,12 +636,6 @@ if (isNewMoimCreation) {
 ```
 
 ---
-
-## **2.3. UX 개선 및 모바일 환경 최적화**
-
-Multi Step Form의 UX 단점을 어떻게 극복할지, 모바일 환경의 가상 키보드로 인한 UX 저하 문제를 어떻게 해결할지 등, (해결 방법은) 사소하지만 (사용자 경험에는) 중요한 문제들이었어요.
-
-이 세 가지 문제를 각각 어떻게 해결했는지 하나씩 살펴봅시다.
 
 # 5. **UX 개선 및 모바일 환경 최적화**
 
@@ -675,13 +667,13 @@ useEffect(() => {
 
 ---
 
-# 7. **결론**
+# 6. **결론**
 
-저희 팀이 모임 생성 UI를 Multi Step Form을 도입하면서 겪은 문제와 해결 과정을 공유했는데요, 이런 질문이 있을 수 있다고 생각해요. “모임 생성 UI가 이렇게 Multi Step Form까지 도입할 정도로 복잡한 Form인가요?”
+모우다 팀이 모임 생성 UI를 Multi Step Form로 전환하면서 겪은 문제와 해결 과정을 공유했는데, 이런 질문이 있을 수 있다고 생각해요.
 
-물론 모임 생성 Form이 금융 서비스나 어떤 행정 업무와 관련된 서류처럼 엄청 복잡하진 않아요. 하지만 우리 모우다의 핵심 가치는 ‘모임을 쉽게’입니다. 사용자가 모임을 쉽게 만들고 참여할 수 있도록 돕는 게 우리 팀의 목적이에요. 이러한 목적 속에서 아이디어가 생기고, 아이디어를 실현하면서 성장을 이룰 수 있다고 생각합니다.
+> “모임 생성 UI가 이렇게 Multi Step Form까지 도입할 정도로 복잡한 Form인가요?”
 
-모우다 서비스의 복잡한 모임 여정 속에서, 모임 생성을 최대한 부담 없이 할 수 있도록 최대한의 노력을 기울인 결과가 Multi Step Form이었습니다.
+물론 모임 생성 Form이 금융 서비스나 어떤 행정 서류처럼 엄청 복잡하진 않아요. 하지만 우리 모우다의 핵심 가치는 ‘모임을 쉽게’입니다. 사용자가 모임을 쉽게 만들고 참여할 수 있도록 돕는 게 우리 팀의 목표에요. 복잡한 모임 여정 속에서, 모임 생성을 부담 없이 쉽게 할 수 있도록 최대한의 노력을 기울인 결과가 Multi Step Form이었습니다. 문제를 해결하기 위해, 가치를 만들어내기 위해 고민하고 구현해내는 것, 그게 개발자 아닐까요?
 
 ---
 
